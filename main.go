@@ -2,21 +2,43 @@ package main
 
 import (
 	"fmt"
-	"github.com/mdaffin/go-telegraf"
+	"github.com/influxdata/influxdb-client-go"
 	"github.com/spf13/viper"
 	"github.com/whatupdave/mcping"
 	"log"
 	"os"
+	"time"
+	"context"
 	"runtime"
+	"net/http"
 )
 
 const version = "0.0.1"
+
+func DoMeasures(resp mcping.PingResponse, client influxdb.Client) error {
+	// submit all the fields of the ping to the telegraf tcp line
+	hostname, _  := os.Hostname()
+	myMetrics := []influxdb.Metric{
+		influxdb.NewRowMetric(	
+			map[string]interface{}{"online": 1},"mcping",
+			map[string]string{"hostname": hostname},
+			time.Date(2018, 3, 4, 5, 6, 7, 8, time.UTC)),
+			
+	}
+
+	write_err := client.Write(context.Background(), "mcping-go", "server_A", myMetrics...)
+	if write_err != nil {
+		return write_err
+	}
+	return nil
+}
 
 func main() {
 	fmt.Printf("mcping-bin version %s\n", version)
 	// ref https://github.com/pallets/click/blob/4da5e93cede17262424671208799bc6921dcfa36/click/utils.py#L368-L417
 	viper.AddConfigPath("$HOME/.config/")
 	viper.AddConfigPath("$HOME/Library/Application Support/")
+	viper.AddConfigPath(os.Getenv("MCPING_CONF_DIR"))
 	cwd, _ := os.Getwd()
 	viper.AddConfigPath(cwd)
 	if runtime.GOOS == "windows" {
@@ -28,23 +50,25 @@ func main() {
 	viper.SetDefault("telegraf_server", "localhost:8094")
 	viper.SetDefault("miceraft_server", "localhost:25565")
 	viper.ReadInConfig()
-
+	myToken := viper.GetString("telegraf_token")
 	grafServer := viper.GetString("telegraf_server")
-	log.Printf("mcping config file: %s", viper.ConfigFileUsed())
-	client, tel_err := telegraf.NewTCP(grafServer)
-	if tel_err != nil {
-		log.Fatalf("telegraf fail: %s", tel_err)
+	httpClient := &http.Client{}
+	influx, influx_err :=  influxdb.New(httpClient, influxdb.WithAddress(grafServer), influxdb.WithToken(myToken))
+	if influx_err != nil {
+		log.Fatalf("influx fail: %s", influx_err)
 	}
-	defer client.Close()
+	log.Printf("mcping config file: %s", viper.ConfigFileUsed())
+	defer influx.Close()
+
 	mcServer := viper.GetString("minecraft_server")
 	resp, mcErr := mcping.Ping(mcServer)
 	if mcErr != nil {
-		log.Fatalf("minecraft fail: %s", mcErr)
+		log.Printf("minecraft fail: %s", mcErr)
 	}
-	m := telegraf.MeasureInt("mcping-go", "online", resp.Online)
-	write_err := client.Write(m)
-	if write_err != nil {
-		log.Fatalf("telegraf write fail: %s", write_err)
+	
+	measure_err := DoMeasures(resp, *influx)
+	if measure_err != nil {
+		log.Fatalf("telegraf measure fail: %s", measure_err)
 	}
 	log.Println("Mineplex has", resp.Online, "players online")
 }

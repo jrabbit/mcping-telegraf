@@ -11,6 +11,7 @@ require (
 	github.com/go-kit/kit v0.9.0 // indirect
 	github.com/golang/groupcache v0.0.0-20190702054246-869f871628b6 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.9.3 // indirect
+	github.com/influxdata/influxdb-client-go v0.0.1
 	github.com/jmoiron/jsonq v0.0.0-20150511023944-e874b168d07e
 	github.com/kisielk/errcheck v1.2.0 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
