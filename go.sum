@@ -1,0 +1,4 @@
+github.com/jmoiron/jsonq v0.0.0-20150511023944-e874b168d07e h1:ZZCvgaRDZg1gC9/1xrsgaJzQUCQgniKtw0xjWywWAOE=
+github.com/jmoiron/jsonq v0.0.0-20150511023944-e874b168d07e/go.mod h1:+rHyWac2R9oAZwFe1wGY2HBzFJJy++RHBg1cU23NkD8=
+github.com/whatupdave/mcping v0.0.0-20160424190107-45b6a3b38c14 h1:PHoEMu4qA+fKjzSWGqZvDlqpsx2k6eEFYy9QZJkkQAU=
+github.com/whatupdave/mcping v0.0.0-20160424190107-45b6a3b38c14/go.mod h1:RauEKFLhC9gApHCFNATMRfKqgbLtFd2QTWtYftqaK6o=
