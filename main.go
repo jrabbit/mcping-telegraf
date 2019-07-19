@@ -1,29 +1,28 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/influxdata/influxdb-client-go"
 	"github.com/spf13/viper"
 	"github.com/whatupdave/mcping"
 	"log"
-	"os"
-	"time"
-	"context"
-	"runtime"
 	"net/http"
+	"os"
+	"runtime"
+	"time"
 )
 
 const version = "0.0.1"
 
 func DoMeasures(resp mcping.PingResponse, client influxdb.Client) error {
 	// submit all the fields of the ping to the telegraf tcp line
-	hostname, _  := os.Hostname()
+	hostname, _ := os.Hostname()
 	myMetrics := []influxdb.Metric{
-		influxdb.NewRowMetric(	
-			map[string]interface{}{"online": 1},"mcping",
+		influxdb.NewRowMetric(
+			map[string]interface{}{"online": 1}, "mcping",
 			map[string]string{"hostname": hostname},
 			time.Date(2018, 3, 4, 5, 6, 7, 8, time.UTC)),
-			
 	}
 
 	write_err := client.Write(context.Background(), "mcping-go", "server_A", myMetrics...)
@@ -48,12 +47,12 @@ func main() {
 	viper.SetConfigName("mcping")
 
 	viper.SetDefault("telegraf_server", "localhost:8094")
-	viper.SetDefault("miceraft_server", "localhost:25565")
+	viper.SetDefault("minecraft_server", "localhost:25565")
 	viper.ReadInConfig()
 	myToken := viper.GetString("telegraf_token")
 	grafServer := viper.GetString("telegraf_server")
 	httpClient := &http.Client{}
-	influx, influx_err :=  influxdb.New(httpClient, influxdb.WithAddress(grafServer), influxdb.WithToken(myToken))
+	influx, influx_err := influxdb.New(httpClient, influxdb.WithAddress(grafServer), influxdb.WithToken(myToken))
 	if influx_err != nil {
 		log.Fatalf("influx fail: %s", influx_err)
 	}
@@ -64,11 +63,12 @@ func main() {
 	resp, mcErr := mcping.Ping(mcServer)
 	if mcErr != nil {
 		log.Printf("minecraft fail: %s", mcErr)
+		log.Printf("minecraft host tried: %s", mcServer)
 	}
-	
+	log.Println("Mineplex has", resp.Online, "players online")
+
 	measure_err := DoMeasures(resp, *influx)
 	if measure_err != nil {
 		log.Fatalf("telegraf measure fail: %s", measure_err)
 	}
-	log.Println("Mineplex has", resp.Online, "players online")
 }
