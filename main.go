@@ -15,9 +15,18 @@ import (
 	"time"
 )
 
-const version = "0.1.0"
+const version = "0.2.0"
 
-func DoMeasures(resp mcping.PingResponse, client influxdb.Client) error {
+type McPopList struct {
+	Online int
+	Users []string
+}
+
+func (m McPopList) String() string {
+	return fmt.Sprintf("%v", m.Online)
+}
+
+func DoMeasures(resp McPopList, client influxdb.Client) error {
 	// submit all the fields of the ping to the telegraf tcp line
 	hostname, _ := os.Hostname()
 	myMetrics := []influxdb.Metric{
@@ -40,10 +49,9 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if m.Author.ID == s.State.User.ID {
 		return
 	}
-	// If the message is "ping" reply with "Pong!"
 	if m.Content == "$minecraft" {
 		resp := DoPing()
-		s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("mc population: %v", resp.Online))
+		s.ChannelMessageSend(m.ChannelID, fmt.Sprintf(":bar_chart:  mc population: %v \n :people_wrestling: %v", resp.Online, resp.Users))
 	}
 }
 
@@ -89,6 +97,7 @@ func main() {
 	fmt.Printf("mcping-bin version %s\n", version)
 	// ref https://github.com/pallets/click/blob/4da5e93cede17262424671208799bc6921dcfa36/click/utils.py#L368-L417
 	viper.AddConfigPath("$HOME/.config/")
+	viper.AddConfigPath("/etc/")
 	viper.AddConfigPath("$HOME/Library/Application Support/")
 	viper.AddConfigPath(os.Getenv("MCPING_CONF_DIR"))
 	cwd, _ := os.Getwd()
@@ -125,12 +134,16 @@ func main() {
 
 }
 
-func DoPing() mcping.PingResponse {
+func DoPing() McPopList {
 	mcServer := viper.GetString("minecraft_server")
 	resp, mcErr := mcping.Ping(mcServer)
 	if mcErr != nil {
 		log.Printf("minecraft fail: %s", mcErr)
 		log.Printf("minecraft host tried: %s", mcServer)
 	}
-	return resp
+	users := []string{}
+	for _, u := range resp.Sample{
+		users = append(users, u.Name)
+	}
+	return McPopList{Online: resp.Online, Users: users}
 }
