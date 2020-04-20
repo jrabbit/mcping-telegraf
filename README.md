@@ -1,5 +1,5 @@
 # mcping-bot
 
-report minecraft details to discord and influxdb
+report minecraft details to discord
 
 configure via viper
