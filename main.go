@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -19,7 +20,7 @@ const version = "0.2.0"
 
 type McPopList struct {
 	Online int
-	Users []string
+	Users  []string
 }
 
 func (m McPopList) String() string {
@@ -56,15 +57,48 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 }
 
 func DiscordSetup() {
-	const TARGET_PERMS uint = 280640
+	const TARGET_PERMS uint = 67120144
+	//manage messages, channels, nicknames, view channels
 	cl_id := viper.GetString("discord.client_id")
 	log.Printf("connect via https://discordapp.com/oauth2/authorize?client_id=%s&scope=bot&permissions=%s", cl_id, TARGET_PERMS)
 }
 
 func ready(s *discordgo.Session, event *discordgo.Ready) {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	done := make(chan bool)
+	mc_voice_channel := GetVCChannel(s)
+	go func() {
+		time.Sleep(10 * time.Second)
+		done <- true
+	}()
+	for {
+		select {
+		case <-done:
+			fmt.Println("Done!")
+			return
+		case <-ticker.C:
+			pop := DoPing()
+			s.UpdateStatus(0, fmt.Sprintf("mc pop: %v", pop.Online))
+			s.ChannelEdit(mc_voice_channel.ID, fmt.Sprintf("mc population: %v", pop.Online))
+		}
+	}
 
-	// Set the playing status.
-	s.UpdateStatus(0, "minecraft stasi")
+}
+
+func GetVCChannel(s *discordgo.Session) discordgo.Channel {
+	guilds, _ := s.UserGuilds(10, "", "")
+	guild, _ := s.Guild(guilds[0].ID)
+	for _, c := range guild.Channels {
+		if strings.HasPrefix(c.Name, "minecraft") {
+			return *c
+		}
+	}
+	newChannel, err := s.GuildChannelCreate(guild.ID, "minecraft population: x", discordgo.ChannelTypeGuildVoice)
+	if err != nil {
+		log.Fatalf("issue creating channel %v", err)
+	}
+	return *newChannel
 }
 
 func DoDiscord() {
@@ -82,7 +116,6 @@ func DoDiscord() {
 	if err != nil {
 		fmt.Println("Error opening Discord session: ", err)
 	}
-
 	// Wait here until CTRL-C or other term signal is received.
 	fmt.Println("Bot is now running.  Press CTRL-C to exit.")
 	sc := make(chan os.Signal, 1)
@@ -142,7 +175,7 @@ func DoPing() McPopList {
 		log.Printf("minecraft host tried: %s", mcServer)
 	}
 	users := []string{}
-	for _, u := range resp.Sample{
+	for _, u := range resp.Sample {
 		users = append(users, u.Name)
 	}
 	return McPopList{Online: resp.Online, Users: users}
