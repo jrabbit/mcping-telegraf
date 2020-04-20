@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-const version = "0.2.0"
+const version = "0.3.0"
 
 type McPopList struct {
 	Online int
@@ -66,24 +66,16 @@ func DiscordSetup() {
 func ready(s *discordgo.Session, event *discordgo.Ready) {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
-	done := make(chan bool)
+	//done := make(chan bool)
 	mc_voice_channel := GetVCChannel(s)
-	go func() {
-		time.Sleep(10 * time.Second)
-		done <- true
-	}()
 	for {
 		select {
-		case <-done:
-			fmt.Println("Done!")
-			return
 		case <-ticker.C:
 			pop := DoPing()
 			s.UpdateStatus(0, fmt.Sprintf("mc pop: %v", pop.Online))
-			s.ChannelEdit(mc_voice_channel.ID, fmt.Sprintf("mc population: %v", pop.Online))
+			s.ChannelEdit(mc_voice_channel.ID, fmt.Sprintf("minecraft population: %v", pop.Online))
 		}
 	}
-
 }
 
 func GetVCChannel(s *discordgo.Session) discordgo.Channel {
@@ -94,7 +86,13 @@ func GetVCChannel(s *discordgo.Session) discordgo.Channel {
 			return *c
 		}
 	}
-	newChannel, err := s.GuildChannelCreate(guild.ID, "minecraft population: x", discordgo.ChannelTypeGuildVoice)
+	var category discordgo.Channel
+	for _, c := range guild.Channels {
+		if strings.HasPrefix(c.Name, "Voice"){
+			category = *c		
+		}
+	}  
+	newChannel, err := s.GuildChannelCreateComplex(guild.ID, discordgo.GuildChannelCreateData{Name: "minecraft population: x", Type: discordgo.ChannelTypeGuildVoice, ParentID: category.ID})
 	if err != nil {
 		log.Fatalf("issue creating channel %v", err)
 	}
