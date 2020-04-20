@@ -1,10 +1,8 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"github.com/bwmarrin/discordgo"
-	"github.com/influxdata/influxdb-client-go"
 	"github.com/spf13/viper"
 	"github.com/whatupdave/mcping"
 	"log"
@@ -25,23 +23,6 @@ type McPopList struct {
 
 func (m McPopList) String() string {
 	return fmt.Sprintf("%v", m.Online)
-}
-
-func DoMeasures(resp McPopList, client influxdb.Client) error {
-	// submit all the fields of the ping to the telegraf tcp line
-	hostname, _ := os.Hostname()
-	myMetrics := []influxdb.Metric{
-		influxdb.NewRowMetric(
-			map[string]interface{}{"online": resp.Online}, "mcping",
-			map[string]string{"hostname": hostname},
-			time.Date(2018, 3, 4, 5, 6, 7, 8, time.UTC)),
-	}
-
-	_, write_err := client.Write(context.Background(), "mcping-go", "server_A", myMetrics...)
-	if write_err != nil {
-		return write_err
-	}
-	return nil
 }
 
 func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
@@ -139,30 +120,16 @@ func main() {
 	}
 	viper.SetConfigName("mcping")
 
-	viper.SetDefault("telegraf_server", "localhost:8094")
 	viper.SetDefault("minecraft_server", "localhost:25565")
 	err := viper.ReadInConfig()
 	if err != nil {
 		log.Printf("config warn: %v", err)
 	}
-	myToken := viper.GetString("telegraf_token")
-	grafServer := viper.GetString("telegraf_server")
-	influx, influx_err := influxdb.New(grafServer, myToken)
-	if influx_err != nil {
-		log.Fatalf("influx fail: %s", influx_err)
-	}
 	log.Printf("mcping config file: %s", viper.ConfigFileUsed())
 	DoDiscord()
-	defer influx.Close()
 
-	resp := DoPing()
-	log.Println("Mineplex has", resp.Online, "players online")
-
-	measure_err := DoMeasures(resp, *influx)
-	if measure_err != nil {
-		log.Fatalf("telegraf measure fail: %s", measure_err)
-	}
-
+	//resp := DoPing()
+	//log.Println("Mineplex has", resp.Online, "players online")
 }
 
 func DoPing() McPopList {
